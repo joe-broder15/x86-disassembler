@@ -55,6 +55,7 @@ def disassemble_modrm(data, opcode_size, instruction_info: InstructionInfo):
     # start building the instruction object
     instruction = Instruction(mnemonic=mnemonic, encoding=instruction_info.encoding)
 
+    # build instruction based on addressing mode
     if mod == 3:
         pass
     elif mod == 2:
