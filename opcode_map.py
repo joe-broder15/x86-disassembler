@@ -46,6 +46,9 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Call
     0xE8: InstructionData(0xE8, "call", False, "D"),
 
+    # Clflush
+    0xF0AE: InstructionData(0xF0AE, None, True, "M", extension_map={7:"clflush"}, addressingModes=[0, 1, 2]),
+
     # Cmp
     0x3D: InstructionData(0x3D, "cmp eax", False, "I"),
     0x39: InstructionData(0x39, "cmp", True, "MR"),
@@ -64,6 +67,8 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Jz/Jnz
     0x74: InstructionData(0x74, "jz", False, "D", imm_size=8),
     0x75: InstructionData(0x75, "jnz", False, "D", imm_size=8),
+    0x0F85: InstructionData(0x0F85, "jnz", False, "D"),
+    0x0F84: InstructionData(0x0F84, "jz", False, "D"),
 
     # Lea
     0x8D: InstructionData(
@@ -98,6 +103,9 @@ GLOBAL_INSTRUCTIONS_MAP = {
     0x68: InstructionData(0x68, "push", False, "I"),
     0x6A: InstructionData(0x6A, "push", False, "I", imm_size=8),
 
+    # Repne cmpsd
+    0xF2A7: InstructionData(0xF2A7, "repne cmpsd", False, "ZO"),
+
     # ret/retn/retf
     0xCB: InstructionData(0xCB, "retf", False, "ZO"),
     0xCA: InstructionData(0xCA, "retf", False, "I", imm_size=16),
@@ -105,18 +113,18 @@ GLOBAL_INSTRUCTIONS_MAP = {
     0xC2: InstructionData(0xC2, "retn", False, "I", imm_size=16),
 
     # Sub
-    0x2D: InstructionData(0x2D, "sub", True,"mi" ),
-    0x29: InstructionData(0x29, "sub", True,"mr" ),
-    0x2B: InstructionData(0x2B, "sub", True,"rm" ),
+    0x2D: InstructionData(0x2D, "sub", True,"I" ),
+    0x29: InstructionData(0x29, "sub", True,"MR" ),
+    0x2B: InstructionData(0x2B, "sub", True,"RM" ),
 
     # Test
-    0xA9: InstructionData(0xA9, "test eax", False, "id"),
-    0x85: InstructionData(0x85, "test", True, "mr"),
+    0xA9: InstructionData(0xA9, "test eax", False, "I"),
+    0x85: InstructionData(0x85, "test", True, "MR"),
 
     # Xor
-    0x35:InstructionData(0x35, "xor eax", False, "id"),
-    0x31:InstructionData(0x31, "xor", True, "mr"),
-    0x33:InstructionData(0x33, "xor", True, "rm"),
+    0x35:InstructionData(0x35, "xor eax", False, "I"),
+    0x31:InstructionData(0x31, "xor", True, "MR"),
+    0x33:InstructionData(0x33, "xor", True, "RM"),
 
     # Multi
     0xFF: InstructionData(
@@ -125,9 +133,7 @@ GLOBAL_INSTRUCTIONS_MAP = {
     0x81: InstructionData(
         0x81, None, True, "MI", extension_map={0: "add", 1:"or", 4: "and", 5:"sub", 6:"xor", 7: "cmp"}, imm_size=32
     ),
-    0xF7: InstructionData(0xF7, None, True, "m", extension_map={0:"test", 2: "not", 7: "idiv"}),
+    0xF7: InstructionData(0xF7, None, True, "MI", extension_map={0:"test", 2: "not", 7: "idiv"}),
     # TODO
-    # clflush m8
-    # jz/jnz rel32
     # repne cmpsd
 }
