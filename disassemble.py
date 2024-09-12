@@ -222,8 +222,11 @@ def linnear_sweep(filename: str):
         original_offset = counter
 
         # TODO: HANDLE FUNCTION CALLS / JUMPS
+
+        # disassemble the instruction and get the instruction size
         instruction, instruction_size = disassemble(data[counter:])
 
+        # store the instruction in the output list along with the raw bytes
         output_list[original_offset] = (
             instruction,
             data[original_offset : original_offset + instruction_size + 1],
