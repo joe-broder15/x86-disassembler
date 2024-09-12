@@ -30,47 +30,69 @@ class Instruction:
         self.base = base
 
     def __str__(self) -> str:
-        # TODO: HANDLE FORMATTING BASED ON ENCODING FOR PRINT
-        return self.mnemonic
+
+        # print instructions based on encoding
+        if self.encoding == Encodings.M:
+            return f"{self.mnemonic} {self.rm}"
+        elif self.encoding == Encodings.MI:
+            return f"{self.mnemonic} {self.rm}, {self.immediate}"
+        elif self.encoding == Encodings.MR:
+            return f"{self.mnemonic} {self.rm}, {self.reg}"
+        elif self.encoding == Encodings.RM:
+            return f"{self.mnemonic} {self.reg}, {self.rm}"
+
+
+# get the mnemonic of a modrm instruction, handling opcode extension if needed
+def modrm_get_mnemonic(reg: int, instruction_info: InstructionInfo) -> str:
+
+    # check opcode extension if it exists to get the mnemonic based on reg
+    if instruction_info.extension_map and reg in instruction_info.extension_map:
+        return instruction_info.extension_map[reg]
+    # check if there is an illegal opcode extension
+    elif instruction_info.extension_map:
+        raise Exception(
+            f"INVALID OPCODE EXTENSION {reg} FOR OPCODE {instruction_info.opcode}"
+        )
+    # return mnemonic directly from the instruction info
+    return instruction_info.mnemonic
+
+
+def modrm_get_addressing_mode(mod: int, instruction_info: InstructionInfo) -> int:
+    if mod in instruction_info.addressing_modes:
+        return mod
+    else:
+        raise Exception(
+            f"INVALID ADDRESSING MODE {mod} FOR OPCODE {instruction_info.opcode}"
+        )
 
 
 # disassemble instruction with modrm
-def disassemble_modrm(data: bytearray, opcode_size, instruction_info: InstructionInfo):
+def modrm_disassemble(data: bytearray, opcode_size, instruction_info: InstructionInfo):
     # account for opcode size + modrm
     instruction_size = opcode_size + 1
 
     # parse the modrm byte
     (mod, reg, rm) = parse_modrm(data[0])
 
-    # get mnemonic
-    mnemonic = instruction_info.mnemonic
-
-    # check opcode extension if it exists to get the mnemonic
-    if instruction_info.extension_map:
-        if reg in instruction_info.extension_map:
-            mnemonic = instruction_info.extension_map[reg]
-        else:
-            raise Exception(
-                f"INVALID OPCODE EXTENSION {reg} FOR OPCODE {instruction_info.opcode}"
-            )
-
-    # check for an illegal addressing mode
-    if not mod in instruction_info.addressing_modes:
-        raise Exception(
-            f"INVALID ADDRESSING MODE {mod} FOR OPCODE {instruction_info.opcode}"
-        )
-
     # start building the instruction object
     instruction = Instruction(
-        mnemonic=mnemonic, encoding=instruction_info.encoding, reg=reg
+        mnemonic=modrm_get_mnemonic(reg, instruction_info),
+        encoding=instruction_info.encoding,
+        reg=reg,
     )
 
-    # build instruction based on addressing mode
+    # safely get addressing mode
+    mod = modrm_get_addressing_mode(mod, instruction_info)
+
+    # TODO:displacement interaction with SIB
+    # TODO: MOVE THIS LOGIC TO A NEW FUNCTION
+    # TODO: endian swap on immediates and displacements
+
+    # continue building instruction based on addressing mode:
+
     # r/m is a direct register
     if mod == 3:
         instruction.rm = GLOBAL_REGISTER_NAMES[rm]
-
-    # TODO:displacement interaction with SIB
 
     # r/m is register + dword displacement
     elif mod == 2:
@@ -120,11 +142,18 @@ def disassemble_modrm(data: bytearray, opcode_size, instruction_info: Instructio
             instruction.reg = GLOBAL_REGISTER_NAMES[reg]
             instruction.rm = f"[{GLOBAL_REGISTER_NAMES[rm]}]"
 
+    # handle an immediate in the case of an MI instruction
+    if instruction_info.encoding == Encodings.MI:
+        instruction.immediate = data[
+            instruction_size : instruction_size + instruction_info.imm_size
+        ]
+        instruction_size += instruction_info.imm_size
+
     return instruction, instruction_size
 
 
 # disassemble instruction with no modrm
-def disassemble_no_modrm(data, opcode_size, instruction_info):
+def no_modrm_disassemble(data, opcode_size, instruction_info):
     # disassemble instruction with no modrm
     pass
 
@@ -149,11 +178,11 @@ def disassemble(data):
 
     # check if modrm instruction
     if instruction_info.has_modrm:
-        instruction, instruction_size = disassemble_modrm(
+        instruction, instruction_size = modrm_disassemble(
             data[opcode_size:], opcode_size, instruction_info
         )
     else:
-        instruction, instruction_size = disassemble_no_modrm(
+        instruction, instruction_size = no_modrm_disassemble(
             data[opcode_size:], opcode_size, instruction_info
         )
 

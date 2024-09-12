@@ -13,7 +13,7 @@ class InstructionInfo:
         addressing_modes=[0, 1, 2, 3],
         opcode_plus=False,
         prefix_map=None,
-        imm_size=32,
+        imm_size=4,
     ) -> None:
         self.opcode = opcode  # opcode of the instruction
         self.mnemonic = mnemonic  # mnemonic of the instruction
@@ -23,7 +23,7 @@ class InstructionInfo:
         self.extension_map = extension_map  # opcode extension map if extension exists
         self.opcode_plus = opcode_plus  # bool indicating whether we add to the opcode
         self.prefix_map = prefix_map  # map of prefixes for the instruction
-        imm_size = imm_size  # immediate size
+        self.imm_size = imm_size  # immediate size
 
 
 GLOBAL_REGISTER_NAMES = ["eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"]
@@ -62,11 +62,11 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Inc
     0x40: InstructionInfo(0x40, "inc", False, Encodings.O, opcode_plus=True),
     # Jmp
-    0xEB: InstructionInfo(0xEB, "jmp", False, Encodings.D, imm_size=8),
+    0xEB: InstructionInfo(0xEB, "jmp", False, Encodings.D, imm_size=1),
     0xE9: InstructionInfo(0xE9, "jmp", False, Encodings.D),
     # Jz/Jnz
-    0x74: InstructionInfo(0x74, "jz", False, Encodings.D, imm_size=8),
-    0x75: InstructionInfo(0x75, "jnz", False, Encodings.D, imm_size=8),
+    0x74: InstructionInfo(0x74, "jz", False, Encodings.D, imm_size=1),
+    0x75: InstructionInfo(0x75, "jnz", False, Encodings.D, imm_size=1),
     0x0F85: InstructionInfo(0x0F85, "jnz", False, Encodings.D),
     0x0F84: InstructionInfo(0x0F84, "jz", False, Encodings.D),
     # Lea
@@ -94,14 +94,14 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Push
     0x50: InstructionInfo(0x50, "push", False, Encodings.O),
     0x68: InstructionInfo(0x68, "push", False, Encodings.I),
-    0x6A: InstructionInfo(0x6A, "push", False, Encodings.I, imm_size=8),
+    0x6A: InstructionInfo(0x6A, "push", False, Encodings.I, imm_size=1),
     # Repne cmpsd
     0xF2A7: InstructionInfo(0xF2A7, "repne cmpsd", False, Encodings.ZO),
     # ret/retn/retf
     0xCB: InstructionInfo(0xCB, "retf", False, Encodings.ZO),
-    0xCA: InstructionInfo(0xCA, "retf", False, Encodings.I, imm_size=16),
+    0xCA: InstructionInfo(0xCA, "retf", False, Encodings.I, imm_size=2),
     0xC3: InstructionInfo(0xC3, "retn", False, Encodings.ZO),
-    0xC2: InstructionInfo(0xC2, "retn", False, Encodings.I, imm_size=16),
+    0xC2: InstructionInfo(0xC2, "retn", False, Encodings.I, imm_size=2),
     # Sub
     0x2D: InstructionInfo(0x2D, "sub", True, Encodings.I),
     0x29: InstructionInfo(0x29, "sub", True, Encodings.MR),
