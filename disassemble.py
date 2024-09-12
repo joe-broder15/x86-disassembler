@@ -1,6 +1,7 @@
 from instruction_data import (
     GLOBAL_INSTRUCTIONS_MAP,
     GLOBAL_REGISTER_NAMES,
+    REGADD_OPCODES,
     InstructionInfo,
     Encodings,
 )
@@ -174,16 +175,17 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
 
 # disassemble instruction with no modrm byte or o/oi encoding
-def no_modrm_no_opadd_disassemble(data, opcode_size, instruction_info: InstructionInfo):
+def no_modrm_no_regadd_disassemble(
+    data, opcode_size, instruction_info: InstructionInfo
+):
     # handle based on  encoding type
 
     instruction_size = opcode_size
-    instruction = Instruction(encoding=instruction_info.encoding)
+    instruction = Instruction(
+        mnemonic=instruction_info.mnemonic, encoding=instruction_info.encoding
+    )
 
-    # TODO: handle endianness
-
-    # set the mnemonic
-    instruction.mnemonic = instruction_info.mnemonic
+    # TODO: handle endianness and negative offsets/immediates
 
     if (
         instruction_info.encoding == Encodings.TD
@@ -206,6 +208,34 @@ def no_modrm_no_opadd_disassemble(data, opcode_size, instruction_info: Instructi
     return instruction, instruction_size
 
 
+# check if an opcode cooresponds to one of the O/OI opcodes with something added
+def regadd_check_opcode(opcode):
+
+    for regadd_opcode in REGADD_OPCODES:
+        if (opcode - regadd_opcode >= 0) and (opcode - regadd_opcode < 8):
+            return GLOBAL_INSTRUCTIONS_MAP[regadd_opcode]
+    return None
+
+
+def regadd_disassemble(data, instruction_info: InstructionInfo):
+    # handle based on  encoding type
+    instruction_size = 1
+    instruction = Instruction(
+        mnemonic=instruction_info.mnemonic,
+        encoding=instruction_info.encoding,
+        reg=GLOBAL_REGISTER_NAMES[data[0] - instruction_info.opcode],
+    )
+
+    # TODO: handle endianness and negative offsets/immediates
+
+    # check for immediate
+    if instruction_info.encoding == Encodings.OI:
+        instruction_size += instruction_info.imm_size
+        instruction.immediate = int.from_bytes(data[1:instruction_size])
+
+    return instruction, instruction_size
+
+
 def disassemble(data):
     # figure out the opcode and get a respective instruction data object
 
@@ -221,20 +251,27 @@ def disassemble(data):
 
     # check for opcode math
     else:
-        return Instruction(immediate=data[0], is_db=True), 1
+        instruction_info = regadd_check_opcode(data[0])
+        # unknown instruction, return a db
+        if not instruction_info:
+            return Instruction(immediate=data[0], is_db=True), 1
 
-    # check if modrm instruction
+    # decode the actual instruction based on the above info
+
+    # handle modrm instruction
     if instruction_info.has_modrm:
         instruction, instruction_size = modrm_disassemble(
             data[opcode_size:], opcode_size, instruction_info
         )
+    # handle o/oi instructions
     elif (
         instruction_info.encoding == Encodings.O
         or instruction_info.encoding == Encodings.OI
     ):
-        return Instruction(immediate=data[0], is_db=True), 1
+        instruction, instruction_size = regadd_disassemble(data, instruction_info)
+    # handle all other instruction types
     else:
-        instruction, instruction_size = no_modrm_no_opadd_disassemble(
+        instruction, instruction_size = no_modrm_no_regadd_disassemble(
             data[opcode_size:], opcode_size, instruction_info
         )
 

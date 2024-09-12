@@ -14,11 +14,11 @@ def main():
     input_file = args["input"]
 
     # disassemble the file
-    try:
-        output_list, labels = linnear_sweep(input_file)
-    except Exception as e:
-        print(e)
-        exit()
+    # try:
+    output_list, labels = linnear_sweep(input_file)
+    # except Exception as e:
+    #     print(e)
+    #     exit()
 
     # print disassembly
     # get the offsets in sorted order

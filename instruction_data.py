@@ -27,9 +27,10 @@ class InstructionInfo:
 
 
 GLOBAL_REGISTER_NAMES = ["eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"]
+REGADD_OPCODES = [0X48, 0X40, 0XB8, 0X58, 0X50]
 
 Encodings = Enum(
-    "Encodings", ["I", "MI", "MR", "RM", "M", "O", "OI", "D", "FD", "TD", "ZO"]
+    "Encodings", ["I", "MI", "MR", "RM", "M", "O", "OI", "D", "FD", "TD", "ZO",]
 )
 
 # GLOBAL_INSTRUCTION_MAP
