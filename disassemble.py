@@ -19,6 +19,7 @@ class Instruction:
         scale=None,
         index=None,
         base=None,
+        is_db=False,
     ):
         self.mnemonic = mnemonic
         self.encoding = encoding
@@ -28,8 +29,13 @@ class Instruction:
         self.scale = scale
         self.index = index
         self.base = base
+        self.is_db = is_db
 
     def __str__(self) -> str:
+
+        # handle db
+        if self.is_db:
+            return f"db {self.immediate}"
 
         # print instructions based on encoding
         if self.encoding == Encodings.M:
@@ -40,6 +46,21 @@ class Instruction:
             return f"{self.mnemonic} {self.rm}, {self.reg}"
         elif self.encoding == Encodings.RM:
             return f"{self.mnemonic} {self.reg}, {self.rm}"
+        elif self.encoding == Encodings.I:
+            pass
+        elif self.encoding == Encodings.O:
+            pass
+        elif self.encoding == Encodings.OI:
+            pass
+        elif self.encoding == Encodings.FD:
+            pass
+        elif self.encoding == Encodings.TD:
+            pass
+        elif self.encoding == Encodings.D:
+            pass
+
+        else:  # ZO encoding
+            pass
 
 
 # get the mnemonic of a modrm instruction, handling opcode extension if needed
@@ -51,10 +72,11 @@ def modrm_get_mnemonic(reg: int, instruction_info: InstructionInfo) -> str:
     # check if there is an illegal opcode extension
     elif instruction_info.extension_map:
         raise Exception(
-            f"INVALID OPCODE EXTENSION {reg} FOR OPCODE {instruction_info.opcode}"
+            f"INVALID OPCODE EXTENSION {reg} FOR OPCODE {instruction_info.opcode:X}"
         )
     # return mnemonic directly from the instruction info
-    return instruction_info.mnemonic
+    else:
+        return instruction_info.mnemonic
 
 
 def modrm_get_addressing_mode(mod: int, instruction_info: InstructionInfo) -> int:
@@ -62,7 +84,7 @@ def modrm_get_addressing_mode(mod: int, instruction_info: InstructionInfo) -> in
         return mod
     else:
         raise Exception(
-            f"INVALID ADDRESSING MODE {mod} FOR OPCODE {instruction_info.opcode}"
+            f"INVALID ADDRESSING MODE {mod} FOR OPCODE {instruction_info.opcode:X}"
         )
 
 
@@ -78,7 +100,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
     instruction = Instruction(
         mnemonic=modrm_get_mnemonic(reg, instruction_info),
         encoding=instruction_info.encoding,
-        reg=reg,
+        reg=GLOBAL_REGISTER_NAMES[reg],
     )
 
     # safely get addressing mode
@@ -139,7 +161,6 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
         # register only
         else:
-            instruction.reg = GLOBAL_REGISTER_NAMES[reg]
             instruction.rm = f"[{GLOBAL_REGISTER_NAMES[rm]}]"
 
     # handle an immediate in the case of an MI instruction
@@ -171,10 +192,8 @@ def disassemble(data):
         opcode_size = 2
         instruction_info = GLOBAL_INSTRUCTIONS_MAP[data[:2]]
 
-    # unknown opcode, return a db
-    # TODO: HANDLE DB ILLEGAL OPCODE
     else:
-        raise Exception("unknown opcode")
+        return Instruction(immediate=data[0], is_db=True), 1
 
     # check if modrm instruction
     if instruction_info.has_modrm:
@@ -182,15 +201,17 @@ def disassemble(data):
             data[opcode_size:], opcode_size, instruction_info
         )
     else:
-        instruction, instruction_size = no_modrm_disassemble(
-            data[opcode_size:], opcode_size, instruction_info
-        )
+        # instruction, instruction_size = no_modrm_disassemble(
+        #     data[opcode_size:], opcode_size, instruction_info
+        # )
+        return Instruction(immediate=data[0], is_db=True), 1
 
-    return instruction, data[:instruction_size], instruction_size
+    return instruction, instruction_size
 
 
+# linnear sweep algorithm for disassembly
 def linnear_sweep(filename: str):
-    counter = 0x0
+    counter = 0
     output_list = {}
     labels = {}
 
@@ -201,10 +222,13 @@ def linnear_sweep(filename: str):
         original_offset = counter
 
         # TODO: HANDLE FUNCTION CALLS / JUMPS
-        instruction, instruction_bytes, instruction_size = disassemble(data[counter:])
+        instruction, instruction_size = disassemble(data[counter:])
 
-        output_list[original_offset] = (instruction, instruction_bytes)
+        output_list[original_offset] = (
+            instruction,
+            data[original_offset : original_offset + instruction_size + 1],
+        )
 
         counter += instruction_size
 
-    pass
+    return output_list, labels

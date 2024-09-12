@@ -5,10 +5,6 @@ def get_file(filename):
 
 
 def parse_modrm(modrm):
-    # mod = (modrm & 0xC0) >> 6
-    # reg = (modrm & 0x38) >> 3
-    # rm  = (modrm & 0x07)
-
     mod = (modrm & 0b11000000) >> 6
     reg = (modrm & 0b00111000) >> 3
     rm = modrm & 0b00000111
