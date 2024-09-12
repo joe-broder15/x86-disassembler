@@ -55,7 +55,6 @@ def parseMODRM(modrm):
 
 
 def printDisasm(l):
-
     # Good idea to add a "global label" structure...
     # can check to see if "addr" is in it for a branch reference
 
@@ -64,7 +63,6 @@ def printDisasm(l):
 
 
 def disassemble(b):
-
     ## TM
     # I would suggest maintaining an "output" dictionary
     # Your key should be the counter/address [you can use this
@@ -76,7 +74,6 @@ def disassemble(b):
     i = 0
 
     while i < len(b):
-
         implemented = False
         # opcode = ord(b[i])	#If using python2.7
         opcode = b[i]  # current byte to work on

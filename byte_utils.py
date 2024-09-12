@@ -19,4 +19,4 @@ def parse_sib(sib):
     scale = (sib & 0b11000000) >> 6
     index = (sib & 0b00111000) >> 3
     base = sib & 0b00000111
-    return (scale, index, base)
+    return (2**scale, index, base)

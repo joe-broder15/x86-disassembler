@@ -3,7 +3,6 @@ from enum import Enum
 
 # data class that stores information about an instruction
 class InstructionInfo:
-
     def __init__(
         self,
         opcode,
