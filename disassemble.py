@@ -47,20 +47,20 @@ class Instruction:
         elif self.encoding == Encodings.RM:
             return f"{self.mnemonic} {self.reg}, {self.rm}"
         elif self.encoding == Encodings.I:
-            pass
+            return f"{self.mnemonic} {self.immediate}"
         elif self.encoding == Encodings.O:
-            pass
+            return f"{self.mnemonic} {self.reg}"
         elif self.encoding == Encodings.OI:
-            pass
+            return f"{self.mnemonic} {self.reg}, {self.immediate}"
         elif self.encoding == Encodings.FD:
-            pass
+            return f"{self.mnemonic} {self.reg}, {self.immediate}"
         elif self.encoding == Encodings.TD:
-            pass
+            return f"{self.mnemonic} {self.immediate}, {self.reg}"
         elif self.encoding == Encodings.D:
-            pass
+            return f"{self.mnemonic} {self.immediate}"
 
         else:  # ZO encoding
-            pass
+            return self.mnemonic
 
 
 # get the mnemonic of a modrm instruction, handling opcode extension if needed
@@ -173,10 +173,37 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
     return instruction, instruction_size
 
 
-# disassemble instruction with no modrm
-def no_modrm_disassemble(data, opcode_size, instruction_info):
-    # disassemble instruction with no modrm
-    pass
+# disassemble instruction with no modrm byte or o/oi encoding
+def no_modrm_no_opadd_disassemble(data, opcode_size, instruction_info: InstructionInfo):
+    # handle based on  encoding type
+
+    instruction_size = opcode_size
+    instruction = Instruction(encoding=instruction_info.encoding)
+
+    # TODO: handle endianness
+
+    # set the mnemonic
+    instruction.mnemonic = instruction_info.mnemonic
+
+    if (
+        instruction_info.encoding == Encodings.TD
+        or instruction_info.encoding == Encodings.FD
+    ):
+        instruction.reg = "eax"
+        instruction_size += instruction_info.imm_size
+        instruction.immediate = instruction.immediate = int.from_bytes(
+            data[:instruction_size]
+        )
+    elif (
+        instruction_info.encoding == Encodings.I
+        or instruction_info.encoding == Encodings.D
+    ):
+        instruction_size += instruction_info.imm_size
+        instruction.immediate = int.from_bytes(data[:instruction_size])
+
+    # we don't have to do anything in the case of ZO encodings
+
+    return instruction, instruction_size
 
 
 def disassemble(data):
@@ -192,6 +219,7 @@ def disassemble(data):
         opcode_size = 2
         instruction_info = GLOBAL_INSTRUCTIONS_MAP[data[:2]]
 
+    # check for opcode math
     else:
         return Instruction(immediate=data[0], is_db=True), 1
 
@@ -200,11 +228,15 @@ def disassemble(data):
         instruction, instruction_size = modrm_disassemble(
             data[opcode_size:], opcode_size, instruction_info
         )
-    else:
-        # instruction, instruction_size = no_modrm_disassemble(
-        #     data[opcode_size:], opcode_size, instruction_info
-        # )
+    elif (
+        instruction_info.encoding == Encodings.O
+        or instruction_info.encoding == Encodings.OI
+    ):
         return Instruction(immediate=data[0], is_db=True), 1
+    else:
+        instruction, instruction_size = no_modrm_no_opadd_disassemble(
+            data[opcode_size:], opcode_size, instruction_info
+        )
 
     return instruction, instruction_size
 
@@ -229,7 +261,7 @@ def linnear_sweep(filename: str):
         # store the instruction in the output list along with the raw bytes
         output_list[original_offset] = (
             instruction,
-            data[original_offset : original_offset + instruction_size + 1],
+            data[original_offset : original_offset + instruction_size],
         )
 
         counter += instruction_size
