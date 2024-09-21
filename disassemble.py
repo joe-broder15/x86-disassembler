@@ -189,28 +189,30 @@ def no_modrm_no_regadd_disassemble(
 
     # TODO: handle endianness and negative offsets/immediates
 
-    if (
-        instruction_info.encoding == Encodings.TD
-        or instruction_info.encoding == Encodings.FD
-    ):
-        instruction.reg = "eax"
-        instruction_size += instruction_info.imm_size
-        imm = instruction.immediate = int.from_bytes(
-            data[: instruction_info.imm_size], "little"
-        )
-        instruction.immediate = f"0x{imm:08X}"
+    # we don't have to do anything in the cae of ZO instructions
+    if not instruction.encoding == Encodings.ZO:
 
-    elif (
-        instruction_info.encoding == Encodings.I
-        or instruction_info.encoding == Encodings.D
-    ):
-        instruction_size += instruction_info.imm_size
-        imm = instruction.immediate = int.from_bytes(
-            data[: instruction_info.imm_size], "little"
-        )
-        instruction.immediate = f"0x{imm:08X}"
+        # check for the exclusive EAX instructions
+        if (
+            instruction_info.encoding == Encodings.TD
+            or instruction_info.encoding == Encodings.FD
+        ):
+            instruction.reg = "eax"
 
-    # we don't have to do anything in the case of ZO encodings
+        # set the immediate based on the size
+        if instruction_info.imm_size == 4:
+            instruction_size += instruction_info.imm_size
+            imm = instruction.immediate = int.from_bytes(
+                data[: instruction_info.imm_size], "little"
+            )
+            instruction.immediate = f"0x{imm:08X}"
+        else:
+            imm = instruction.immediate = int.from_bytes(
+                data[: instruction_info.imm_size], "little", signed=True
+            )
+            instruction.immediate = f"{imm}"
+
+        instruction_size += instruction_info.imm_size
 
     return instruction, instruction_size
 
