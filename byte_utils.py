@@ -16,3 +16,7 @@ def parse_sib(sib):
     index = (sib & 0b00111000) >> 3
     base = sib & 0b00000111
     return (2**scale, index, base)
+
+
+def to_signed(byte_value: int):
+    return (byte_value - 256) if byte_value > 127 else byte_value

@@ -6,10 +6,7 @@ from instruction_data import (
     InstructionInfo,
     Encodings,
 )
-from byte_utils import parse_modrm, parse_sib, get_file
-
-# TODO: HANDLE 16 BIT IMMEDIATE ON RETN
-
+from byte_utils import parse_modrm, parse_sib, get_file, to_signed
 
 # simple data class for building up a disassembled instruction with string tokens
 class Instruction:
@@ -39,7 +36,7 @@ class Instruction:
 
         # handle db
         if self.is_db:
-            return f"db {self.immediate}"
+            return f"db 0x{self.immediate:02X}"
 
         # print instructions based on encoding
         if self.encoding == Encodings.M:
@@ -126,24 +123,28 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
             instruction_size += 5
             displacement = int.from_bytes(data[2:6], "little", signed=False)
             (scale, index, base) = parse_sib(data[1])
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + 0x{displacement:08X} ]"
+            instruction.rm = f"[ dword {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + 0x{displacement:08X} ]"
         else:
             instruction_size += 4
             displacement = int.from_bytes(data[1:5], "little", signed=False)
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} + 0x{displacement:08X} ]"
+            instruction.rm = (
+                f"[ dword {GLOBAL_REGISTER_NAMES[rm]} + 0x{displacement:08X} ]"
+            )
 
     # rm is register + byte displacement
     elif mod == 1:
         # sib byte detected
         if rm == 4:
             instruction_size += 2
-            displacement = data[2]
+            displacement = to_signed(data[2])
             (scale, index, base) = parse_sib(data[1])
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + 0x{displacement:02X} ]"
+            instruction.rm = f"[ byte {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X} ]"
         else:
             instruction_size += 1
-            displacement = data[1]
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} + 0x{displacement:02X} ]"
+            displacement = to_signed(data[1])
+            instruction.rm = (
+                f"[ byte {GLOBAL_REGISTER_NAMES[rm]} {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X} ]"
+            )
 
     # mod is 0, check special cases
     else:
@@ -168,10 +169,12 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
     # handle an immediate in the case of an MI instruction
     if instruction_info.encoding == Encodings.MI:
-        instruction.immediate = data[
-            instruction_size : instruction_size + instruction_info.imm_size
-        ]
         instruction_size += instruction_info.imm_size
+        instruction.immediate = int.from_bytes(
+            data[1:instruction_size], "little", signed=False
+        )
+        if instruction_info.imm_size == 4:
+            instruction.immediate = f"0x{instruction.immediate}"
 
     return instruction, instruction_size
 
@@ -200,19 +203,25 @@ def no_modrm_no_regadd_disassemble(
             instruction.reg = "eax"
 
         # set the immediate based on the size
+        instruction_size += instruction_info.imm_size
         if instruction_info.imm_size == 4:
-            instruction_size += instruction_info.imm_size
+
             imm = instruction.immediate = int.from_bytes(
                 data[: instruction_info.imm_size], "little"
             )
             instruction.immediate = f"0x{imm:08X}"
+
+        elif instruction_info.imm_size == 2:
+
+            imm = instruction.immediate = int.from_bytes(
+                data[: instruction_info.imm_size], "little"
+            )
+            instruction.immediate = f"0x{imm:04X}"
         else:
             imm = instruction.immediate = int.from_bytes(
                 data[: instruction_info.imm_size], "little", signed=True
             )
             instruction.immediate = f"{imm}"
-
-        instruction_size += instruction_info.imm_size
 
     return instruction, instruction_size
 
@@ -266,24 +275,28 @@ def disassemble(data):
 
     # decode the actual instruction based on the above info
 
-    # handle modrm instruction
-    if instruction_info.has_modrm:
-        instruction, instruction_size = modrm_disassemble(
-            data[opcode_size:], opcode_size, instruction_info
-        )
-    # handle o/oi instructions
-    elif (
-        instruction_info.encoding == Encodings.O
-        or instruction_info.encoding == Encodings.OI
-    ):
-        instruction, instruction_size = regadd_disassemble(data, instruction_info)
-    # handle all other instruction types
-    else:
-        instruction, instruction_size = no_modrm_no_regadd_disassemble(
-            data[opcode_size:], opcode_size, instruction_info
-        )
+    try:
+        # handle modrm instruction
+        if instruction_info.has_modrm:
+            instruction, instruction_size = modrm_disassemble(
+                data[opcode_size:], opcode_size, instruction_info
+            )
+        # handle o/oi instructions
+        elif (
+            instruction_info.encoding == Encodings.O
+            or instruction_info.encoding == Encodings.OI
+        ):
+            instruction, instruction_size = regadd_disassemble(data, instruction_info)
+        # handle all other instruction types
+        else:
+            instruction, instruction_size = no_modrm_no_regadd_disassemble(
+                data[opcode_size:], opcode_size, instruction_info
+            )
 
-    return instruction, instruction_size
+        return instruction, instruction_size
+
+    except Exception as e:
+        return Instruction(immediate=data[0], is_db=True), 1
 
 
 # linnear sweep algorithm for disassembly
