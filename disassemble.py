@@ -2,10 +2,13 @@ from instruction_data import (
     GLOBAL_INSTRUCTIONS_MAP,
     GLOBAL_REGISTER_NAMES,
     REGADD_OPCODES,
+    CALL_GENERATING,
     InstructionInfo,
     Encodings,
 )
 from byte_utils import parse_modrm, parse_sib, get_file
+
+# TODO: HANDLE 16 BIT IMMEDIATE ON RETN
 
 
 # simple data class for building up a disassembled instruction with string tokens
@@ -107,8 +110,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
     # safely get addressing mode
     mod = modrm_get_addressing_mode(mod, instruction_info)
 
-    # TODO:displacement interaction with SIB
-    # TODO: MOVE THIS LOGIC TO A NEW FUNCTION
+    # TODO: swap sign on negative offsets
     # TODO: endian swap on immediates and displacements
 
     # continue building instruction based on addressing mode:
@@ -122,13 +124,13 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
         # sib byte detected
         if rm == 4:
             instruction_size += 5
-            displacement = data[2:6]
+            displacement = int.from_bytes(data[2:6], "little", signed=False)
             (scale, index, base) = parse_sib(data[1])
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + {displacement.hex()} ]"
+            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + 0x{displacement:08X} ]"
         else:
             instruction_size += 4
-            displacement = data[1:5]
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} + {displacement.hex()} ]"
+            displacement = int.from_bytes(data[1:5], "little", signed=False)
+            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} + 0x{displacement:08X} ]"
 
     # rm is register + byte displacement
     elif mod == 1:
@@ -137,19 +139,19 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
             instruction_size += 2
             displacement = data[2]
             (scale, index, base) = parse_sib(data[1])
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + {int(displacement)} ]"
+            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + 0x{displacement:02X} ]"
         else:
             instruction_size += 1
             displacement = data[1]
-            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} + {int(displacement)} ]"
+            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} + 0x{displacement:02X} ]"
 
     # mod is 0, check special cases
     else:
         # r/m is a displacement32
         if rm == 5:
             instruction_size += 4
-            displacement = data[1:5]
-            instruction.rm = f"[ {displacement} ]"
+            displacement = int.from_bytes(data[1:5], "little", signed=False)
+            instruction.rm = f"[ {displacement:08X} ]"
 
         # sib byte
         elif rm == 4:
@@ -193,15 +195,20 @@ def no_modrm_no_regadd_disassemble(
     ):
         instruction.reg = "eax"
         instruction_size += instruction_info.imm_size
-        instruction.immediate = instruction.immediate = int.from_bytes(
-            data[:instruction_size]
+        imm = instruction.immediate = int.from_bytes(
+            data[: instruction_info.imm_size], "little"
         )
+        instruction.immediate = f"0x{imm:08X}"
+
     elif (
         instruction_info.encoding == Encodings.I
         or instruction_info.encoding == Encodings.D
     ):
         instruction_size += instruction_info.imm_size
-        instruction.immediate = int.from_bytes(data[:instruction_size])
+        imm = instruction.immediate = int.from_bytes(
+            data[: instruction_info.imm_size], "little"
+        )
+        instruction.immediate = f"0x{imm:08X}"
 
     # we don't have to do anything in the case of ZO encodings
 
@@ -226,12 +233,11 @@ def regadd_disassemble(data, instruction_info: InstructionInfo):
         reg=GLOBAL_REGISTER_NAMES[data[0] - instruction_info.opcode],
     )
 
-    # TODO: handle endianness and negative offsets/immediates
-
     # check for immediate
     if instruction_info.encoding == Encodings.OI:
         instruction_size += instruction_info.imm_size
-        instruction.immediate = int.from_bytes(data[1:instruction_size])
+        imm = int.from_bytes(data[1:instruction_size], byteorder="little", signed=False)
+        instruction.immediate = f"0x{imm:08X}"
 
     return instruction, instruction_size
 
@@ -294,6 +300,10 @@ def linnear_sweep(filename: str):
 
         # disassemble the instruction and get the instruction size
         instruction, instruction_size = disassemble(data[counter:])
+
+        if instruction.mnemonic in CALL_GENERATING:
+            # do something to handle calls and labels
+            pass
 
         # store the instruction in the output list along with the raw bytes
         output_list[original_offset] = (
