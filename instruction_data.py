@@ -71,7 +71,7 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Cmp
     0x3D: InstructionInfo(0x3D, "cmp eax,", False, Encodings.I),
     0x39: InstructionInfo(0x39, "cmp", True, Encodings.MR),
-    0x3B: InstructionInfo(0x3B, "cmp", False, Encodings.RM),
+    0x3B: InstructionInfo(0x3B, "cmp", True, Encodings.RM),
     # Dec
     0x48: InstructionInfo(0x48, "dec", False, Encodings.O, opcode_plus=True),
     # Inc
@@ -144,6 +144,6 @@ GLOBAL_INSTRUCTIONS_MAP = {
         extension_map={0: "add", 1: "or", 4: "and", 5: "sub", 6: "xor", 7: "cmp"},
     ),
     0xF7: InstructionInfo(
-        0xF7, None, True, Encodings.MI, extension_map={0: "test", 2: "not", 7: "idiv"}
+        0xF7, None, True, Encodings.M, extension_map={0: "test", 2: "not", 7: "idiv"}
     ),
 }

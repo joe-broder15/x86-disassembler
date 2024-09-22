@@ -212,7 +212,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
 # disassemble instruction with no modrm byte or o/oi encoding
 def no_modrm_no_regadd_disassemble(
-    data, opcode_size, instruction_info: InstructionInfo
+    data, opcode_size, instruction_info: InstructionInfo, offset
 ):
     # handle based on  encoding type
 
@@ -233,26 +233,44 @@ def no_modrm_no_regadd_disassemble(
         ):
             instruction.reg = "eax"
 
-        # set the immediate based on the size
+        # get the immediate size
         instruction_size += instruction_info.imm_size
-        if instruction_info.imm_size == 4:
+        
+        # set the immediate based on the size
+        if instruction.encoding == Encodings.I:
+            if instruction_info.imm_size == 4:
 
-            imm = instruction.immediate = int.from_bytes(
-                data[: instruction_info.imm_size], "little"
-            )
-            instruction.immediate = f"0x{imm:08X}"
+                imm = instruction.immediate = int.from_bytes(
+                    data[: instruction_info.imm_size], "little"
+                )
+                instruction.immediate = f"0x{imm:08X}"
 
-        elif instruction_info.imm_size == 2:
+            elif instruction_info.imm_size == 2:
 
-            imm = instruction.immediate = int.from_bytes(
-                data[: instruction_info.imm_size], "little"
-            )
-            instruction.immediate = f"0x{imm:04X}"
+                imm = instruction.immediate = int.from_bytes(
+                    data[: instruction_info.imm_size], "little"
+                )
+                instruction.immediate = f"0x{imm:04X}"
+            else:
+                imm = instruction.immediate = int.from_bytes(
+                    data[: instruction_info.imm_size], "little", signed=True
+                )
+                instruction.immediate = f"{imm}"
+        
+        # encoding is D, indicating a relative offset
         else:
-            imm = instruction.immediate = int.from_bytes(
-                data[: instruction_info.imm_size], "little", signed=True
-            )
-            instruction.immediate = f"{imm}"
+            if instruction_info.imm_size == 4:
+
+                imm = instruction.immediate = int.from_bytes(
+                    data[: instruction_info.imm_size], "little", signed=True
+                )
+                instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
+
+            else:
+                imm = instruction.immediate = int.from_bytes(
+                    data[: instruction_info.imm_size], "little", signed=True
+                )
+                instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
 
     return instruction, instruction_size
 
@@ -284,7 +302,7 @@ def regadd_disassemble(data, instruction_info: InstructionInfo):
     return instruction, instruction_size
 
 
-def disassemble(data):
+def disassemble(data, offset):
     # figure out the opcode and get a respective instruction data object
 
     # check for single byte opcode
@@ -321,7 +339,7 @@ def disassemble(data):
         # handle all other instruction types
         else:
             instruction, instruction_size = no_modrm_no_regadd_disassemble(
-                data[opcode_size:], opcode_size, instruction_info
+                data[opcode_size:], opcode_size, instruction_info, offset
             )
 
         return instruction, instruction_size
@@ -345,7 +363,7 @@ def linnear_sweep(filename: str):
         # TODO: HANDLE FUNCTION CALLS / JUMPS
 
         # disassemble the instruction and get the instruction size
-        instruction, instruction_size = disassemble(data[counter:])
+        instruction, instruction_size = disassemble(data[counter:], original_offset)
 
         if instruction.mnemonic in CALL_GENERATING:
             # do something to handle calls and labels
