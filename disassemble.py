@@ -2,14 +2,14 @@ from instruction_data import (
     GLOBAL_INSTRUCTIONS_MAP,
     GLOBAL_REGISTER_NAMES,
     REGADD_OPCODES,
-    CALL_GENERATING,
     InstructionInfo,
-    Encodings,
+    ENCODINGS,
 )
 from byte_utils import parse_modrm, parse_sib, get_file, to_signed
+from typing import Tuple, Optional, Dict, List
 
 
-# simple data class for building up a disassembled instruction with string tokens
+# simple data class for building up a disassembled instruction with string tokens. as we deconstruct machine code we will build these up
 class Instruction:
     def __init__(
         self,
@@ -33,6 +33,7 @@ class Instruction:
         self.base = base
         self.is_db = is_db
 
+    # string method for the instruction class. this handles most all of the formatting when we print disassembled instructions
     def __str__(self) -> str:
 
         # handle db
@@ -40,25 +41,25 @@ class Instruction:
             return f"db 0x{self.immediate:02X}"
 
         # print instructions based on encoding
-        if self.encoding == Encodings.M:
+        if self.encoding == ENCODINGS.M:
             return f"{self.mnemonic} {self.rm}"
-        elif self.encoding == Encodings.MI:
+        elif self.encoding == ENCODINGS.MI:
             return f"{self.mnemonic} {self.rm}, {self.immediate}"
-        elif self.encoding == Encodings.MR:
+        elif self.encoding == ENCODINGS.MR:
             return f"{self.mnemonic} {self.rm}, {self.reg}"
-        elif self.encoding == Encodings.RM:
+        elif self.encoding == ENCODINGS.RM:
             return f"{self.mnemonic} {self.reg}, {self.rm}"
-        elif self.encoding == Encodings.I:
+        elif self.encoding == ENCODINGS.I:
             return f"{self.mnemonic} {self.immediate}"
-        elif self.encoding == Encodings.O:
+        elif self.encoding == ENCODINGS.O:
             return f"{self.mnemonic} {self.reg}"
-        elif self.encoding == Encodings.OI:
+        elif self.encoding == ENCODINGS.OI:
             return f"{self.mnemonic} {self.reg}, {self.immediate}"
-        elif self.encoding == Encodings.FD:
+        elif self.encoding == ENCODINGS.FD:
             return f"{self.mnemonic} {self.reg}, {self.immediate}"
-        elif self.encoding == Encodings.TD:
+        elif self.encoding == ENCODINGS.TD:
             return f"{self.mnemonic} {self.immediate}, {self.reg}"
-        elif self.encoding == Encodings.D:
+        elif self.encoding == ENCODINGS.D:
             return f"{self.mnemonic} {self.immediate}"
 
         else:  # ZO encoding
@@ -71,11 +72,13 @@ def modrm_get_mnemonic(reg: int, instruction_info: InstructionInfo) -> str:
     # check opcode extension if it exists to get the mnemonic based on reg
     if instruction_info.extension_map and reg in instruction_info.extension_map:
         return instruction_info.extension_map[reg]
+
     # check if there is an illegal opcode extension
     elif instruction_info.extension_map:
         raise Exception(
-            f"INVALID OPCODE EXTENSION {reg} FOR OPCODE {instruction_info.opcode:X}"
+            f"Invalid opcode extension {reg} for opcode {instruction_info.opcode:X}"
         )
+
     # return mnemonic directly from the instruction info
     else:
         return instruction_info.mnemonic
@@ -86,12 +89,13 @@ def modrm_get_addressing_mode(mod: int, instruction_info: InstructionInfo) -> in
         return mod
     else:
         raise Exception(
-            f"INVALID ADDRESSING MODE {mod} FOR OPCODE {instruction_info.opcode:X}"
+            f"Invalid addressing mode {mod} for opcode {instruction_info.opcode:X}"
         )
 
 
-# disassemble instruction with modrm
+# disassemble instruction with modrm byte
 def modrm_disassemble(data: bytearray, opcode_size, instruction_info: InstructionInfo):
+
     # account for opcode size + modrm
     instruction_size = opcode_size + 1
 
@@ -193,7 +197,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
             instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} ]"
 
     # handle an immediate in the case of an MI instruction
-    if instruction_info.encoding == Encodings.MI:
+    if instruction_info.encoding == ENCODINGS.MI:
 
         instruction.immediate = int.from_bytes(
             data[
@@ -221,15 +225,13 @@ def no_modrm_no_regadd_disassemble(
         mnemonic=instruction_info.mnemonic, encoding=instruction_info.encoding
     )
 
-    # TODO: handle endianness and negative offsets/immediates
-
     # we don't have to do anything in the cae of ZO instructions
-    if not instruction.encoding == Encodings.ZO:
+    if not instruction.encoding == ENCODINGS.ZO:
 
         # check for the exclusive EAX instructions
         if (
-            instruction_info.encoding == Encodings.TD
-            or instruction_info.encoding == Encodings.FD
+            instruction_info.encoding == ENCODINGS.TD
+            or instruction_info.encoding == ENCODINGS.FD
         ):
             instruction.reg = "eax"
 
@@ -237,7 +239,7 @@ def no_modrm_no_regadd_disassemble(
         instruction_size += instruction_info.imm_size
 
         # set the immediate based on the size
-        if instruction.encoding == Encodings.I:
+        if instruction.encoding == ENCODINGS.I:
             if instruction_info.imm_size == 4:
 
                 imm = instruction.immediate = int.from_bytes(
@@ -270,7 +272,7 @@ def no_modrm_no_regadd_disassemble(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
 
-            instruction.immediate += offset+instruction_size
+            instruction.immediate += offset + instruction_size
 
     return instruction, instruction_size
 
@@ -294,7 +296,7 @@ def regadd_disassemble(data, instruction_info: InstructionInfo):
     )
 
     # check for immediate
-    if instruction_info.encoding == Encodings.OI:
+    if instruction_info.encoding == ENCODINGS.OI:
         instruction_size += instruction_info.imm_size
         imm = int.from_bytes(data[1:instruction_size], byteorder="little", signed=False)
         instruction.immediate = f"0x{imm:08X}"
@@ -302,8 +304,10 @@ def regadd_disassemble(data, instruction_info: InstructionInfo):
     return instruction, instruction_size
 
 
-def disassemble(data, offset):
-    # figure out the opcode and get a respective instruction data object
+# disassemble a single instruction from a stream of binary data
+def disassemble(data: bytes, offset: int) -> Tuple["Instruction", int]:
+
+    # first figure out the opcode and get a respective instruction data object
 
     # check for single byte opcode
     if data[0] in GLOBAL_INSTRUCTIONS_MAP:
@@ -315,27 +319,29 @@ def disassemble(data, offset):
         opcode_size = 2
         instruction_info = GLOBAL_INSTRUCTIONS_MAP[int.from_bytes(data[:2], "big")]
 
-    # check for opcode math
-    else:
+    # check for opcode math (O/OI encodings)
+    elif regadd_check_opcode(data[0]):
         instruction_info = regadd_check_opcode(data[0])
-        # unknown instruction, return a db
-        if not instruction_info:
-            return Instruction(immediate=data[0], is_db=True), 1
 
-    # decode the actual instruction based on the above info
+    # invalid opcode, return a db instruction
+    else:
+        return Instruction(immediate=data[0], is_db=True), 1
 
+    # try to disassemble using the instruction info
     try:
-        # handle modrm instruction
+        # handle instructions with the modrm byte
         if instruction_info.has_modrm:
             instruction, instruction_size = modrm_disassemble(
                 data[opcode_size:], opcode_size, instruction_info
             )
-        # handle o/oi instructions
+
+        # handle o/oi instructions that require opcode math
         elif (
-            instruction_info.encoding == Encodings.O
-            or instruction_info.encoding == Encodings.OI
+            instruction_info.encoding == ENCODINGS.O
+            or instruction_info.encoding == ENCODINGS.OI
         ):
             instruction, instruction_size = regadd_disassemble(data, instruction_info)
+            
         # handle all other instruction types
         else:
             instruction, instruction_size = no_modrm_no_regadd_disassemble(
@@ -347,8 +353,11 @@ def disassemble(data, offset):
     except Exception as e:
         return Instruction(immediate=data[0], is_db=True), 1
 
+
 # linnear sweep algorithm for disassembly
-def linnear_sweep(filename: str):
+def linear_sweep(
+    filename: str,
+) -> Tuple[Dict[int, Tuple["Instruction", bytes]], Dict[int, str]]:
     counter = 0
     output_list = {}
     labels = {}
@@ -359,25 +368,22 @@ def linnear_sweep(filename: str):
     while counter < len(data):
         original_offset = counter
 
-        # TODO: HANDLE FUNCTION CALLS / JUMPS
-
         # disassemble the instruction and get the instruction size
         instruction, instruction_size = disassemble(data[counter:], original_offset)
 
-        if instruction.encoding == Encodings.D:
-            # do something to handle calls and labels
-            dest_addr_str = f"{instruction.immediate:08X}"
-            dest_label = f"offset_{dest_addr_str}h"
-            labels[instruction.immediate]=dest_label
-            instruction.immediate = dest_label
-
+        # generate a label for a relative jumping instruction
+        if instruction.encoding == ENCODINGS.D:
+            dest_addr = instruction.immediate  # save off the immediate
+            dest_addr_str = f"{dest_addr:08X}"  # get the immediate as a hex string
+            dest_label = f"offset_{dest_addr_str}h"  # generate offset label
+            labels[dest_addr] = dest_label  # insert into the labels dict
+            instruction.immediate = dest_label  # set the immediate to be the label name
 
         # store the instruction in the output list along with the raw bytes
-        output_list[original_offset] = (
-            instruction,
-            data[original_offset : original_offset + instruction_size],
-        )
+        instruction_bytes = data[original_offset : original_offset + instruction_size]
+        output_list[original_offset] = (instruction, instruction_bytes)
 
+        # increment the counter by the size of the instruction
         counter += instruction_size
 
     return output_list, labels
