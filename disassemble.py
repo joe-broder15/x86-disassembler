@@ -8,6 +8,7 @@ from instruction_data import (
 )
 from byte_utils import parse_modrm, parse_sib, get_file, to_signed
 
+
 # simple data class for building up a disassembled instruction with string tokens
 class Instruction:
     def __init__(
@@ -106,7 +107,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
     # safely get addressing mode
     mod = modrm_get_addressing_mode(mod, instruction_info)
-    
+
     # continue building instruction based on addressing mode:
 
     # r/m is a direct register
@@ -128,13 +129,11 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
         else:
             instruction_size += 4
             displacement = int.from_bytes(data[1:5], "little", signed=False)
-            instruction.rm = (
-                f"[ dword {GLOBAL_REGISTER_NAMES[rm]}"
-            )
+            instruction.rm = f"[ dword {GLOBAL_REGISTER_NAMES[rm]}"
 
         if not displacement == 0:
-            instruction.rm +=  f" + 0x{displacement:08X}"
-        
+            instruction.rm += f" + 0x{displacement:08X}"
+
         instruction.rm += " ]"
 
     # rm is register + byte displacement
@@ -152,13 +151,13 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
         else:
             instruction_size += 1
             displacement = to_signed(data[1])
-            instruction.rm = (
-                f"[ byte {GLOBAL_REGISTER_NAMES[rm]}"
-            )
-        
+            instruction.rm = f"[ byte {GLOBAL_REGISTER_NAMES[rm]}"
+
         if not displacement == 0:
-            instruction.rm +=  f" {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X}"
-        
+            instruction.rm += (
+                f" {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X}"
+            )
+
         instruction.rm += " ]"
 
     # mod is 0, check special cases
@@ -182,8 +181,8 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
                 instruction_size += 4
                 displacement = int.from_bytes(data[2:6], "little", signed=False)
                 if not displacement == 0:
-                    instruction.rm +=  f" + 0x{displacement:08X}"
-        
+                    instruction.rm += f" + 0x{displacement:08X}"
+
                 instruction.rm += " ]"
 
             else:
@@ -195,13 +194,17 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
     # handle an immediate in the case of an MI instruction
     if instruction_info.encoding == Encodings.MI:
-        
+
         instruction.immediate = int.from_bytes(
-            data[instruction_size-1:instruction_size-1 + instruction_info.imm_size], "little", signed=False
+            data[
+                instruction_size - 1 : instruction_size - 1 + instruction_info.imm_size
+            ],
+            "little",
+            signed=False,
         )
         if instruction_info.imm_size == 4:
             instruction.immediate = f"0x{instruction.immediate:08X}"
-        
+
         instruction_size += instruction_info.imm_size
 
     return instruction, instruction_size
@@ -290,9 +293,9 @@ def disassemble(data):
         instruction_info = GLOBAL_INSTRUCTIONS_MAP[data[0]]
 
     # check for two byte opcode
-    elif data[:2] in GLOBAL_INSTRUCTIONS_MAP:
+    elif int.from_bytes(data[:2], "big") in GLOBAL_INSTRUCTIONS_MAP:
         opcode_size = 2
-        instruction_info = GLOBAL_INSTRUCTIONS_MAP[data[:2]]
+        instruction_info = GLOBAL_INSTRUCTIONS_MAP[int.from_bytes(data[:2], "big")]
 
     # check for opcode math
     else:

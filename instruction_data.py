@@ -60,8 +60,8 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Call
     0xE8: InstructionInfo(0xE8, "call", False, Encodings.D),
     # Clflush
-    0xF0AE: InstructionInfo(
-        0xF0AE,
+    0x0FAE: InstructionInfo(
+        0x0FAE,
         None,
         True,
         Encodings.M,
