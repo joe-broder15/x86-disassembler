@@ -2,35 +2,38 @@ import argparse
 from disassemble import linnear_sweep
 
 
+# main function and entry point into program
 def main():
-    # set up argparse
+
+    # set up argparse and parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i", "--input", help="binary file to disassemble", required=True
     )
-
-    # parse args and get input filename
     args = vars(parser.parse_args())
+
+    # get the input filename
     input_file = args["input"]
 
-    # disassemble the file
+    # try to disassemble the program and print any errors that occur
     try:
         output_list, labels = linnear_sweep(input_file)
     except Exception as e:
-        print(e)
-        exit()
+        print(f"Error: {e}")
+        exit(1)
 
-    # print disassembly
-    # get the offsets in sorted order
-    offsets = sorted(list(output_list.keys()))
-    # for each offset
-    for off in offsets:
-        if off in labels:
-            print(f"{labels[off]}:")
-        # format the instruction bytes
-        instruction_bytes = "".join(f"{byte:02X}" for byte in output_list[off][1])
-        # print all fields
-        print(f"0x{off:08X}: {instruction_bytes:20} {str(output_list[off][0])}")
+    # Print disassembly, start by getting the offsets in sorted order
+    for offset in sorted(output_list.keys()):
+
+        # check if a label exists at this offset and print it first
+        if offset in labels:
+            print(f"{labels[offset]}:")
+
+        # format the raw instruction bytes
+        instruction_bytes = "".join(f"{byte:02X}" for byte in output_list[offset][1])
+
+        # print the offset, instruction bytes, and finally the instruction
+        print(f"0x{offset:08X}: {instruction_bytes:20} {output_list[offset][0]}")
 
 
 if __name__ == "__main__":
