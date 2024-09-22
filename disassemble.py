@@ -264,13 +264,14 @@ def no_modrm_no_regadd_disassemble(
                 imm = instruction.immediate = int.from_bytes(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
-                instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
+                
 
             else:
                 imm = instruction.immediate = int.from_bytes(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
-                instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
+            
+            instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
 
     return instruction, instruction_size
 
