@@ -270,7 +270,7 @@ def no_modrm_no_regadd_disassemble(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
 
-            instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
+            instruction.immediate += offset+instruction_size
 
     return instruction, instruction_size
 
@@ -347,7 +347,6 @@ def disassemble(data, offset):
     except Exception as e:
         return Instruction(immediate=data[0], is_db=True), 1
 
-
 # linnear sweep algorithm for disassembly
 def linnear_sweep(filename: str):
     counter = 0
@@ -367,7 +366,11 @@ def linnear_sweep(filename: str):
 
         if instruction.encoding == Encodings.D:
             # do something to handle calls and labels
-            pass
+            dest_addr_str = f"{instruction.immediate:08X}"
+            dest_label = f"offset_{dest_addr_str}h"
+            labels[instruction.immediate]=dest_label
+            instruction.immediate = dest_label
+
 
         # store the instruction in the output list along with the raw bytes
         output_list[original_offset] = (
