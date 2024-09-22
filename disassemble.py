@@ -235,7 +235,7 @@ def no_modrm_no_regadd_disassemble(
 
         # get the immediate size
         instruction_size += instruction_info.imm_size
-        
+
         # set the immediate based on the size
         if instruction.encoding == Encodings.I:
             if instruction_info.imm_size == 4:
@@ -256,7 +256,7 @@ def no_modrm_no_regadd_disassemble(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
                 instruction.immediate = f"{imm}"
-        
+
         # encoding is D, indicating a relative offset
         else:
             if instruction_info.imm_size == 4:
@@ -264,13 +264,12 @@ def no_modrm_no_regadd_disassemble(
                 imm = instruction.immediate = int.from_bytes(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
-                
 
             else:
                 imm = instruction.immediate = int.from_bytes(
                     data[: instruction_info.imm_size], "little", signed=True
                 )
-            
+
             instruction.immediate = f"0x{imm+offset+instruction_size:08X}"
 
     return instruction, instruction_size
@@ -366,7 +365,7 @@ def linnear_sweep(filename: str):
         # disassemble the instruction and get the instruction size
         instruction, instruction_size = disassemble(data[counter:], original_offset)
 
-        if instruction.mnemonic in CALL_GENERATING:
+        if instruction.encoding == Encodings.D:
             # do something to handle calls and labels
             pass
 
