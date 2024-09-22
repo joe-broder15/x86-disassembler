@@ -50,11 +50,11 @@ Encodings = Enum(
 # GLOBAL_INSTRUCTION_MAP
 GLOBAL_INSTRUCTIONS_MAP = {
     # Add
-    0x05: InstructionInfo(0x05, "add eax", False, Encodings.I),
+    0x05: InstructionInfo(0x05, "add eax,", False, Encodings.I),
     0x01: InstructionInfo(0x01, "add", True, Encodings.MR),
     0x03: InstructionInfo(0x03, "add", True, Encodings.RM),
     # And
-    0x25: InstructionInfo(0x25, "and eax", False, Encodings.I),
+    0x25: InstructionInfo(0x25, "and eax,", False, Encodings.I),
     0x21: InstructionInfo(0x21, "and", True, Encodings.MR),
     0x23: InstructionInfo(0x23, "and", True, Encodings.RM),
     # Call
@@ -69,7 +69,7 @@ GLOBAL_INSTRUCTIONS_MAP = {
         addressing_modes=[0, 1, 2],
     ),
     # Cmp
-    0x3D: InstructionInfo(0x3D, "cmp eax", False, Encodings.I),
+    0x3D: InstructionInfo(0x3D, "cmp eax,", False, Encodings.I),
     0x39: InstructionInfo(0x39, "cmp", True, Encodings.MR),
     0x3B: InstructionInfo(0x3B, "cmp", False, Encodings.RM),
     # Dec
@@ -100,7 +100,7 @@ GLOBAL_INSTRUCTIONS_MAP = {
     # Nop
     0x90: InstructionInfo(0x90, "nop", False, Encodings.ZO),
     # Or
-    0x0D: InstructionInfo(0x0D, "or eax", False, Encodings.I),
+    0x0D: InstructionInfo(0x0D, "or eax,", False, Encodings.I),
     0x09: InstructionInfo(0x09, "or", True, Encodings.MR),
     0x0B: InstructionInfo(0x0B, "or", True, Encodings.RM),
     # Pop
@@ -122,10 +122,10 @@ GLOBAL_INSTRUCTIONS_MAP = {
     0x29: InstructionInfo(0x29, "sub", True, Encodings.MR),
     0x2B: InstructionInfo(0x2B, "sub", True, Encodings.RM),
     # Test
-    0xA9: InstructionInfo(0xA9, "test eax", False, Encodings.I),
+    0xA9: InstructionInfo(0xA9, "test eax,", False, Encodings.I),
     0x85: InstructionInfo(0x85, "test", True, Encodings.MR),
     # Xor
-    0x35: InstructionInfo(0x35, "xor eax", False, Encodings.I),
+    0x35: InstructionInfo(0x35, "xor eax,", False, Encodings.I),
     0x31: InstructionInfo(0x31, "xor", True, Encodings.MR),
     0x33: InstructionInfo(0x33, "xor", True, Encodings.RM),
     # Multi

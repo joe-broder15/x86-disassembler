@@ -106,10 +106,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
 
     # safely get addressing mode
     mod = modrm_get_addressing_mode(mod, instruction_info)
-
-    # TODO: swap sign on negative offsets
-    # TODO: endian swap on immediates and displacements
-
+    
     # continue building instruction based on addressing mode:
 
     # r/m is a direct register
@@ -123,13 +120,22 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
             instruction_size += 5
             displacement = int.from_bytes(data[2:6], "little", signed=False)
             (scale, index, base) = parse_sib(data[1])
-            instruction.rm = f"[ dword {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} + 0x{displacement:08X} ]"
+            # handle ESP
+            if index == 4:
+                instruction.rm = f"[ dword {GLOBAL_REGISTER_NAMES[base]}"
+            else:
+                instruction.rm = f"[ dword {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]}"
         else:
             instruction_size += 4
             displacement = int.from_bytes(data[1:5], "little", signed=False)
             instruction.rm = (
-                f"[ dword {GLOBAL_REGISTER_NAMES[rm]} + 0x{displacement:08X} ]"
+                f"[ dword {GLOBAL_REGISTER_NAMES[rm]}"
             )
+
+        if not displacement == 0:
+            instruction.rm +=  f" + 0x{displacement:08X}"
+        
+        instruction.rm += " ]"
 
     # rm is register + byte displacement
     elif mod == 1:
@@ -138,13 +144,22 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
             instruction_size += 2
             displacement = to_signed(data[2])
             (scale, index, base) = parse_sib(data[1])
-            instruction.rm = f"[ byte {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X} ]"
+            # handle ESP
+            if index == 4:
+                instruction.rm = f"[ byte {GLOBAL_REGISTER_NAMES[base]}"
+            else:
+                instruction.rm = f"[ byte {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]}"
         else:
             instruction_size += 1
             displacement = to_signed(data[1])
             instruction.rm = (
-                f"[ byte {GLOBAL_REGISTER_NAMES[rm]} {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X} ]"
+                f"[ byte {GLOBAL_REGISTER_NAMES[rm]}"
             )
+        
+        if not displacement == 0:
+            instruction.rm +=  f" {"+" if displacement > 0 else "-"} 0x{abs(displacement):02X}"
+        
+        instruction.rm += " ]"
 
     # mod is 0, check special cases
     else:
@@ -152,29 +167,42 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
         if rm == 5:
             instruction_size += 4
             displacement = int.from_bytes(data[1:5], "little", signed=False)
-            instruction.rm = f"[ {displacement:08X} ]"
+            instruction.rm = f"[ 0x{displacement:08X} ]"
 
         # sib byte
         elif rm == 4:
             instruction_size += 1
             (scale, index, base) = parse_sib(data[1])
-            if base == 4:
-                instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} ]"
+            # check for special cases of SIB byte at this spexifix mod
+            # handle ESP
+            if index == 4:
+                instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[base]} ]"
+            elif base == 5:
+                instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale}"
+                instruction_size += 4
+                displacement = int.from_bytes(data[2:6], "little", signed=False)
+                if not displacement == 0:
+                    instruction.rm +=  f" + 0x{displacement:08X}"
+        
+                instruction.rm += " ]"
+
             else:
-                instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {base} ]"
+                instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[index]}*{scale} + {GLOBAL_REGISTER_NAMES[base]} ]"
 
         # register only
         else:
-            instruction.rm = f"[{GLOBAL_REGISTER_NAMES[rm]}]"
+            instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} ]"
 
     # handle an immediate in the case of an MI instruction
     if instruction_info.encoding == Encodings.MI:
-        instruction_size += instruction_info.imm_size
+        
         instruction.immediate = int.from_bytes(
-            data[1:instruction_size], "little", signed=False
+            data[instruction_size-1:instruction_size-1 + instruction_info.imm_size], "little", signed=False
         )
         if instruction_info.imm_size == 4:
-            instruction.immediate = f"0x{instruction.immediate}"
+            instruction.immediate = f"0x{instruction.immediate:08X}"
+        
+        instruction_size += instruction_info.imm_size
 
     return instruction, instruction_size
 
