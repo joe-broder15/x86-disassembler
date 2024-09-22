@@ -240,39 +240,24 @@ def no_modrm_no_regadd_disassemble(
 
         # set the immediate based on the size
         if instruction.encoding == ENCODINGS.I:
-            if instruction_info.imm_size == 4:
-
-                imm = instruction.immediate = int.from_bytes(
-                    data[: instruction_info.imm_size], "little"
-                )
-                instruction.immediate = f"0x{imm:08X}"
-
-            elif instruction_info.imm_size == 2:
-
-                imm = instruction.immediate = int.from_bytes(
-                    data[: instruction_info.imm_size], "little"
-                )
-                instruction.immediate = f"0x{imm:04X}"
-            else:
-                imm = instruction.immediate = int.from_bytes(
-                    data[: instruction_info.imm_size], "little", signed=True
-                )
+            imm_size = instruction_info.imm_size
+            if imm_size == 1:
+                # For 1-byte immediate, read as a signed integer
+                imm = int.from_bytes(data[:imm_size], byteorder="little", signed=True)
                 instruction.immediate = f"{imm}"
+            else:
+                # For 2 or 4-byte immediate, read as an unsigned integer
+                imm = int.from_bytes(data[:imm_size], byteorder="little", signed=False)
+                # Format the immediate value as a hexadecimal string with appropriate width
+                instruction.immediate = f"0x{imm:0{imm_size * 2}X}"
 
         # encoding is D, indicating a relative offset
         else:
-            if instruction_info.imm_size == 4:
-
-                imm = instruction.immediate = int.from_bytes(
-                    data[: instruction_info.imm_size], "little", signed=True
-                )
-
-            else:
-                imm = instruction.immediate = int.from_bytes(
-                    data[: instruction_info.imm_size], "little", signed=True
-                )
-
-            instruction.immediate += offset + instruction_size
+            instruction.immediate = (
+                int.from_bytes(data[: instruction_info.imm_size], "little", signed=True)
+                + offset
+                + instruction_size
+            )
 
     return instruction, instruction_size
 
@@ -287,6 +272,10 @@ def regadd_check_opcode(opcode):
 
 
 def regadd_disassemble(data, instruction_info: InstructionInfo):
+
+    if len(data) < 1:
+        raise ValueError("Insufficient data for disassembly.")
+
     # handle based on  encoding type
     instruction_size = 1
     instruction = Instruction(
@@ -341,7 +330,7 @@ def disassemble(data: bytes, offset: int) -> Tuple["Instruction", int]:
             or instruction_info.encoding == ENCODINGS.OI
         ):
             instruction, instruction_size = regadd_disassemble(data, instruction_info)
-            
+
         # handle all other instruction types
         else:
             instruction, instruction_size = no_modrm_no_regadd_disassemble(
