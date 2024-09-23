@@ -118,7 +118,7 @@ GLOBAL_INSTRUCTIONS_MAP = {
     0xC3: InstructionInfo(0xC3, "retn", False, ENCODINGS.ZO),
     0xC2: InstructionInfo(0xC2, "retn", False, ENCODINGS.I, imm_size=2),
     # Sub
-    0x2D: InstructionInfo(0x2D, "sub", True, ENCODINGS.I),
+    0x2D: InstructionInfo(0x2D, "sub", False, ENCODINGS.I),
     0x29: InstructionInfo(0x29, "sub", True, ENCODINGS.MR),
     0x2B: InstructionInfo(0x2B, "sub", True, ENCODINGS.RM),
     # Test

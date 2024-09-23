@@ -109,6 +109,10 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
         reg=GLOBAL_REGISTER_NAMES[reg],
     )
 
+    # handle special case with F7 test being type MI
+    if instruction_info.opcode == 0xF7 and instruction.mnemonic == "test":
+        instruction.encoding = ENCODINGS.MI
+
     # safely get addressing mode
     mod = modrm_get_addressing_mode(mod, instruction_info)
 
@@ -197,7 +201,7 @@ def modrm_disassemble(data: bytearray, opcode_size, instruction_info: Instructio
             instruction.rm = f"[ {GLOBAL_REGISTER_NAMES[rm]} ]"
 
     # handle an immediate in the case of an MI instruction
-    if instruction_info.encoding == ENCODINGS.MI:
+    if instruction.encoding == ENCODINGS.MI:
 
         instruction.immediate = int.from_bytes(
             data[
