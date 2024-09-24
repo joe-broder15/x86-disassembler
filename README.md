@@ -1,5 +1,5 @@
 # jhu-vre-disassembler-project
-project 1 of jhu graduate vre course
+project 1 of jhu graduate vre course. I selected the linnear sweep algorithm for my disassembler.
 
 to run this program simply run `python main.py -i path/to/your/file`
 
