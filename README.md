@@ -2,7 +2,9 @@
 
 ## Overview
 
-This project is an x86 instruction set disassembler that converts binary machine code into human-readable assembly language. It focuses on 32-bit x86 instructions and implements a linear sweep disassembly algorithm to process binary files. The disassembler supports a wide range of common x86 instructions including arithmetic operations, control flow, memory access, and stack manipulation.
+This project is an x86 instruction set disassembler that converts binary machine code into human-readable assembly language. It focuses on 32-bit x86 instructions and implements a linear sweep disassembly algorithm to process binary files. The disassembler supports a wide range of common x86 instructions including arithmetic operations, control flow, memory access, and stack manipulation. 
+
+*Note that this implementation covers approximately 10% of the full x86 instruction set, focusing on the most commonly used instructions.*
 
 ## How to Use
 
